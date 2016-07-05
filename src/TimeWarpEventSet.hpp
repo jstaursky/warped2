@@ -37,7 +37,7 @@ public:
 
     void insertEvent (unsigned int lp_id, std::shared_ptr<Event> event);
 
-    std::shared_ptr<Event> getEvent (unsigned int thread_id);
+    std::vector<std::shared_ptr<Event>> getEvent (unsigned int thread_id, unsigned int count);
 
 #ifdef LADDER_QUEUE_SCHEDULER
 #ifdef PARTIALLY_UNSORTED_EVENT_SET
@@ -56,7 +56,7 @@ public:
 
     void startScheduling (unsigned int lp_id);
 
-    void replenishScheduler (unsigned int lp_id);
+    void replenishScheduler (std::vector<std::pair<unsigned int,bool>> lp_id_list);
 
     bool cancelEvent (unsigned int lp_id, std::shared_ptr<Event> cancel_event);
 
