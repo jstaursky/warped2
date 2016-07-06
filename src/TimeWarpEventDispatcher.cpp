@@ -141,13 +141,11 @@ void TimeWarpEventDispatcher::onGVT(unsigned int gvt) {
 void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
     thread_id = id;
-    unsigned int local_gvt_flag;
-    unsigned int gvt = 0;
 
     while (!termination_manager_->terminationStatus()) {
         // NOTE: local_gvt_flag must be obtained before getting the next event to avoid the
         //  "simultaneous reporting problem"
-        local_gvt_flag = gvt_manager_->getLocalGVTFlag();
+        unsigned int local_gvt_flag = gvt_manager_->getLocalGVTFlag();
 
         std::vector<std::shared_ptr<Event>> event_list = 
                         event_set_->getEvent(thread_id, chain_size_);
@@ -235,7 +233,7 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
                 // Save state
                 state_manager_->saveState(event, current_lp_id, current_lp);
 
-                gvt = gvt_manager_->getGVT();
+                unsigned int gvt = gvt_manager_->getGVT();
 
                 if (gvt > current_lp->last_fossil_collect_gvt_) {
                     current_lp->last_fossil_collect_gvt_ = gvt;
