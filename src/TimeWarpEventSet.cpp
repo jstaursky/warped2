@@ -110,9 +110,6 @@ void TimeWarpEventSet::insertEvent (unsigned int lp_id, std::shared_ptr<Event> e
     }
 }
 
-/*
- *  NOTE: caller must always have the input queue lock for the lp with id lp_id
- */
 std::shared_ptr<Event> TimeWarpEventSet::getEvent (unsigned int thread_id) {
 
     unsigned int scheduler_id = worker_thread_scheduler_map_[thread_id];
@@ -143,6 +140,20 @@ std::shared_ptr<Event> TimeWarpEventSet::getEvent (unsigned int thread_id) {
     schedule_queue_lock_[scheduler_id].unlock();
 
     return event;
+}
+
+std::vector<std::shared_ptr<Event>> TimeWarpEventSet::getEventsFromLP (
+                                        unsigned int lp_id, unsigned int count) {
+
+    std::vector<std::shared_ptr<Event>> event_list;
+    if (!input_queue_[lp_id]->empty()) {
+        for (auto it = input_queue_[lp_id]->begin(); 
+                    (it != input_queue_[lp_id]->end()) && count--; it++) {
+            assert(*it);
+            event_list.emplace_back(*it);
+        }
+    }
+    return event_list;
 }
 
 #ifdef LADDER_QUEUE_SCHEDULER
@@ -255,18 +266,22 @@ void TimeWarpEventSet::startScheduling (unsigned int lp_id) {
  *
  *  NOTE: the scheduled_event_pointer is also protected by input queue lock
  */
-void TimeWarpEventSet::replenishScheduler (unsigned int lp_id) {
+void TimeWarpEventSet::replenishScheduler (
+            unsigned int lp_id, std::vector<std::shared_ptr<Event>> event_list) {
 
     // Something is completely wrong if there is no scheduled event because we obviously just
     // processed an event that was scheduled.
-    assert(scheduled_event_pointer_[lp_id]);
+    //assert(scheduled_event_pointer_[lp_id]);
+    if (!scheduled_event_pointer_[lp_id]) return;
 
     // Move the just processed event to the processed queue
-    auto num_erased = input_queue_[lp_id]->erase(scheduled_event_pointer_[lp_id]);
-    assert(num_erased == 1);
-    unused(num_erased);
-
-    processed_queue_[lp_id]->push_back(scheduled_event_pointer_[lp_id]);
+    for (auto event : event_list) {
+        // Event list might contain cancelled events
+        auto num_erased = input_queue_[lp_id]->erase(event);
+        if (num_erased) {
+            processed_queue_[lp_id]->push_back(event);
+        }
+    }
 
     // Map the lp to the next schedule queue (cyclic order)
     // This is supposed to balance the load across all the schedule queues
@@ -284,6 +299,7 @@ void TimeWarpEventSet::replenishScheduler (unsigned int lp_id) {
         schedule_queue_lock_[scheduler_id].lock();
         schedule_queue_[scheduler_id]->insert(scheduled_event_pointer_[lp_id]);
         schedule_queue_lock_[scheduler_id].unlock();
+
     } else {
         scheduled_event_pointer_[lp_id] = nullptr;
     }

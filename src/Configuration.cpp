@@ -68,9 +68,14 @@ const static std::string DEFAULT_CONFIG = R"x({
 
     "cancellation": "aggressive",
 
+    // Number of worker threads
     "worker-threads": 3,
 
+    // Number of schedule queues
     "scheduler-count": 1,
+
+    // Chain scheduling size
+    "chain-size": 1,
 
     // LP Migration valid options are "on" and "off"
     "lp-migration": "off",
@@ -236,6 +241,12 @@ Configuration::makeDispatcher(std::shared_ptr<TimeWarpCommunicationManager> comm
             invalid_string += std::string("\tNumber of schedule queues\n");
         }
 
+        // EVENT CHAIN SIZE
+        int chain_size = (*root_)["time-warp"]["chain-size"].asInt();
+        if (!checkTimeWarpConfigs(chain_size, all_config_ids, comm_manager)) {
+            invalid_string += std::string("\tEvent chain size\n");
+        }
+
         // LP MIGRATION
         auto lp_migration_status = (*root_)["time-warp"]["lp-migration"].asString();
         if (lp_migration_status == "off") {
@@ -324,7 +335,8 @@ check the following configurations:\n") + invalid_string);
             std::cout << "Simulation type:           " << simulation_type << "\n"
                       << "Number of processes:       " << comm_manager->getNumProcesses() << "\n"
                       << "Number of worker threads:  " << num_worker_threads << "\n"
-                      << "Number of Schedule queues: " << num_schedulers << "\n";
+                      << "Number of Schedule queues: " << num_schedulers << "\n"
+                      << "Event chain size:          " << chain_size << "\n";
 
             std::cout << "Type of Schedule queue:    ";
 #ifdef LADDER_QUEUE_SCHEDULER
@@ -354,7 +366,8 @@ check the following configurations:\n") + invalid_string);
             std::cout << "Cancellation type:         " << cancellation_type << "\n"
                       << "GVT Period:                " << gvt_period << " ms" << "\n"
                       << "Max simulation time:       " \
-                        << (max_sim_time_ ? std::to_string(max_sim_time_) : "infinity") << std::endl << std::endl;
+                        << (max_sim_time_ ? std::to_string(max_sim_time_) : "infinity") 
+                        << std::endl << std::endl;
 
             auto output_config_file = (*root_)["time-warp"]["config-output-file"].asString();
             if (output_config_file != "none") {
@@ -364,11 +377,12 @@ check the following configurations:\n") + invalid_string);
             }
         }
 
-        return make_unique<TimeWarpEventDispatcher>(max_sim_time_,
-            num_worker_threads, is_lp_migration_on, comm_manager,
-            std::move(event_set), std::move(gvt_manager), std::move(state_manager),
-            std::move(output_manager), std::move(twfs_manager),
-            std::move(termination_manager), std::move(tw_stats));
+        return make_unique<TimeWarpEventDispatcher>(
+                    max_sim_time_,num_worker_threads, 
+                    is_lp_migration_on, chain_size, comm_manager,
+                    std::move(event_set), std::move(gvt_manager), std::move(state_manager),
+                    std::move(output_manager), std::move(twfs_manager),
+                    std::move(termination_manager), std::move(tw_stats));
     }
 
     if (comm_manager->getNumProcesses() > 1) {
