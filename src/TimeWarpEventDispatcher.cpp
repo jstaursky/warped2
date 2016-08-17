@@ -176,18 +176,11 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             assert(comm_manager_->getNodeID(event->receiverName()) == comm_manager_->getID());
             LogicalProcess* current_lp = lps_by_name_[event->receiverName()];
 
-            bool was_event_cancelled = false;
             std::vector<std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>> 
                                                                                     new_events_list;
 
             // For each event in the block
             for (unsigned int i = 0; i < event_list.size(); i++) {
-
-                // Handle the situation when the previous event was a negative event
-                if (was_event_cancelled) {
-                    was_event_cancelled = false;
-                    continue;
-                }
 
                 event = event_list[i];
 
@@ -219,15 +212,16 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
                 }
 
                 // Check to see if event is NEGATIVE and cancel
+                // Discontinue the event chain here
                 if (event->event_type_ == EventType::NEGATIVE) {
                     event_set_->acquireInputQueueLock(current_lp_id);
                     bool found = event_set_->cancelEvent(current_lp_id, event);
                     event_set_->releaseInputQueueLock(current_lp_id);
 
                     if (found) {
-                        was_event_cancelled = true; // positive counterpart is the next event
                         tw_stats_->upCount(CANCELLED_EVENTS, thread_id);
                     }
+                    event_list.resize(i);
                     continue;
                 }
 
