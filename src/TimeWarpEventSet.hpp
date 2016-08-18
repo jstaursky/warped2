@@ -58,7 +58,10 @@ public:
 
     void startScheduling (unsigned int lp_id);
 
-    void replenishScheduler (unsigned int lp_id, std::vector<std::shared_ptr<Event>> event_list);
+    void replenishScheduler (
+                        unsigned int lp_id, 
+                        std::vector<std::shared_ptr<Event>> event_list,
+                        unsigned int relevant_chain_size);
 
     bool cancelEvent (unsigned int lp_id, std::shared_ptr<Event> cancel_event);
 

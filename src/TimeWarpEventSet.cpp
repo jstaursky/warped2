@@ -267,7 +267,9 @@ void TimeWarpEventSet::startScheduling (unsigned int lp_id) {
  *  NOTE: the scheduled_event_pointer is also protected by input queue lock
  */
 void TimeWarpEventSet::replenishScheduler (
-            unsigned int lp_id, std::vector<std::shared_ptr<Event>> event_list) {
+                                unsigned int lp_id, 
+                                std::vector<std::shared_ptr<Event>> event_list, 
+                                unsigned int relevant_chain_size ) {
 
     // Something is completely wrong if there is no scheduled event because we obviously just
     // processed an event that was scheduled.
@@ -275,12 +277,10 @@ void TimeWarpEventSet::replenishScheduler (
     if (!scheduled_event_pointer_[lp_id]) return;
 
     // Move the just processed event to the processed queue
-    for (auto event : event_list) {
-        // Event list might contain cancelled events
-        auto num_erased = input_queue_[lp_id]->erase(event);
-        if (num_erased) {
-            processed_queue_[lp_id]->push_back(event);
-        }
+    for (unsigned int i = 0; i < relevant_chain_size; i++) {
+        auto event = event_list[i];
+        input_queue_[lp_id]->erase(event);
+        processed_queue_[lp_id]->push_back(event);
     }
 
     // Map the lp to the next schedule queue (cyclic order)

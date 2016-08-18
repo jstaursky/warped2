@@ -178,9 +178,10 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
             std::vector<std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>> 
                                                                                     new_events_list;
+            unsigned int relevant_chain_size = event_list.size();
 
             // For each event in the block
-            for (unsigned int i = 0; i < event_list.size(); i++) {
+            for (unsigned int i = 0; i < relevant_chain_size; i++) {
 
                 event = event_list[i];
 
@@ -221,7 +222,7 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
                     if (found) {
                         tw_stats_->upCount(CANCELLED_EVENTS, thread_id);
                     }
-                    event_list.resize(i);
+                    relevant_chain_size = i;
                     continue;
                 }
 
@@ -263,7 +264,7 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             // Move the next event from lp into the schedule queue
             // Also transfer old event to processed queue
             event_set_->acquireInputQueueLock(current_lp_id);
-            event_set_->replenishScheduler(current_lp_id, event_list);
+            event_set_->replenishScheduler(current_lp_id, event_list, relevant_chain_size);
             event_set_->releaseInputQueueLock(current_lp_id);
 
         } else {
