@@ -151,6 +151,12 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
         std::shared_ptr<Event> event = event_set_->getEvent(thread_id);
         if (event != nullptr) {
 
+            // Check if the scheduled event is the smallest event available in the LP
+            unsigned int current_lp_id = local_lp_id_by_name_[event->receiverName()];
+            event_set_->acquireInputQueueLock(current_lp_id);
+            event = event_set_->getEventFromLP(current_lp_id);
+            event_set_->releaseInputQueueLock(current_lp_id);
+
             // If needed, report event for this thread so GVT can be calculated
             auto lowest_timestamp = event->timestamp();
 
@@ -167,7 +173,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             }
 
             assert(comm_manager_->getNodeID(event->receiverName()) == comm_manager_->getID());
-            unsigned int current_lp_id = local_lp_id_by_name_[event->receiverName()];
             LogicalProcess* current_lp = lps_by_name_[event->receiverName()];
 
             // Get the last processed event so we can check for a rollback

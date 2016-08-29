@@ -39,6 +39,8 @@ public:
 
     std::shared_ptr<Event> getEvent (unsigned int thread_id);
 
+    std::shared_ptr<Event> getEventFromLP (unsigned int lp_id);
+
 #ifdef PARTIALLY_SORTED_LADDER_QUEUE
     unsigned int lowestTimestamp (unsigned int thread_id);
 #endif
