@@ -271,7 +271,7 @@ void TimeWarpEventDispatcher::receiveEventMessage(std::unique_ptr<TimeWarpKernel
     termination_manager_->updateMsgCount(-1);
     gvt_manager_->receiveEventUpdate(msg->event, msg->color_);
 
-    sendLocalEvent(msg->event);
+    sendRemoteEvent(msg->event);
 }
 
 void TimeWarpEventDispatcher::sendEvents(std::shared_ptr<Event> source_event,
@@ -309,6 +309,18 @@ void TimeWarpEventDispatcher::sendLocalEvent(std::shared_ptr<Event> event) {
     // NOTE: Event is assumed to be less than the maximum simulation time.
     event_set_->acquireInputQueueLock(receiver_lp_id);
     event_set_->insertEvent(receiver_lp_id, event);
+    event_set_->releaseInputQueueLock(receiver_lp_id);
+
+   // Make sure to track sends if we are in the middle of a GVT calculation.
+   gvt_manager_->reportThreadSendMin(event->timestamp(), thread_id);
+}
+
+void TimeWarpEventDispatcher::sendRemoteEvent(std::shared_ptr<Event> event) {
+    unsigned int receiver_lp_id = local_lp_id_by_name_[event->receiverName()];
+
+    // NOTE: Event is assumed to be less than the maximum simulation time.
+    event_set_->acquireInputQueueLock(receiver_lp_id);
+    event_set_->insertRemoteEvent(receiver_lp_id, event);
     event_set_->releaseInputQueueLock(receiver_lp_id);
 
    // Make sure to track sends if we are in the middle of a GVT calculation.

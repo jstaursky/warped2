@@ -37,6 +37,8 @@ public:
 
     void insertEvent (unsigned int lp_id, std::shared_ptr<Event> event);
 
+    void insertRemoteEvent (unsigned int lp_id, std::shared_ptr<Event> event);
+
     std::shared_ptr<Event> getEvent (unsigned int thread_id);
 
     std::shared_ptr<Event> getEventFromLP (unsigned int lp_id);

@@ -57,6 +57,8 @@ private:
 
     void sendLocalEvent(std::shared_ptr<Event> event);
 
+    void sendRemoteEvent(std::shared_ptr<Event> event);
+
     void cancelEvents(std::unique_ptr<std::vector<std::shared_ptr<Event>>> events_to_cancel);
 
     void rollback(std::shared_ptr<Event> straggler_event);
