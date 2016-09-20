@@ -39,10 +39,8 @@ public:
 
     std::vector<std::shared_ptr<Event>> getEvent (unsigned int thread_id, unsigned int count);
 
-#ifdef LADDER_QUEUE_SCHEDULER
-#ifdef PARTIALLY_UNSORTED_EVENT_SET
+#ifdef PARTIALLY_SORTED_LADDER_QUEUE
     unsigned int lowestTimestamp (unsigned int thread_id);
-#endif
 #endif
 
     std::shared_ptr<Event> lastProcessedEvent (unsigned int lp_id);
@@ -90,8 +88,10 @@ private:
 #endif
 
     // Queues to hold the scheduled events
-#ifdef LADDER_QUEUE_SCHEDULER
+#if defined(SORTED_LADDER_QUEUE) || defined(PARTIALLY_SORTED_LADDER_QUEUE)
     std::vector<std::unique_ptr<LadderQueue>> schedule_queue_;
+#elif defined(SPLAY_TREE)
+    std::vector<std::unique_ptr<SplayTree>> schedule_queue_;
 #else
     std::vector<std::unique_ptr<std::multiset<std::shared_ptr<Event>, 
                                             compareEvents>>> schedule_queue_;
