@@ -336,7 +336,7 @@ check the following configurations:\n") + invalid_string);
                       << "Number of processes:       " << comm_manager->getNumProcesses() << "\n"
                       << "Number of worker threads:  " << num_worker_threads << "\n"
                       << "Number of Schedule queues: " << num_schedulers << "\n"
-                      << "Event chain size:          " << chain_size << "\n";
+                      << "[Block scheduling] size:   " << chain_size << "\n";
 
             std::cout << "Type of Schedule queue:    ";
 #ifdef SORTED_LADDER_QUEUE
