@@ -141,18 +141,22 @@ void TimeWarpEventDispatcher::onGVT(unsigned int gvt) {
 void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
     thread_id = id;
+    auto event_block = new std::shared_ptr<Event>[chain_size_];
+    unsigned int block_size = 0;
+    auto lps = new std::pair<unsigned int, bool>[chain_size_];
+    auto new_events_block = 
+        new std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>[chain_size_];
 
     while (!termination_manager_->terminationStatus()) {
         // NOTE: local_gvt_flag must be obtained before getting the next event to avoid the
         //  "simultaneous reporting problem"
         unsigned int local_gvt_flag = gvt_manager_->getLocalGVTFlag();
 
-        std::vector<std::shared_ptr<Event>> event_list = 
-                        event_set_->getEvent(thread_id, chain_size_);
-        if (event_list.size()) {
+        event_set_->getEvent(thread_id, chain_size_, event_block, &block_size);
+        if (block_size) {
 
             // If needed, report event for this thread so GVT can be calculated
-            auto lowest_timestamp = event_list[0]->timestamp();
+            auto lowest_timestamp = event_block[0]->timestamp();
 
 #if PARTIALLY_SORTED_LADDER_QUEUE
             lowest_timestamp = event_set_->lowestTimestamp(thread_id);
@@ -166,14 +170,11 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
                 termination_manager_->setThreadActive(thread_id);
             }
 
-            std::vector<std::pair<unsigned int, bool>> lp_list;
-            std::vector<std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>> 
-                                                                                    new_events_list;
-
             // For each event in the block
-            for (unsigned int i = 0; i < event_list.size(); i++) {
+            unsigned int new_events_block_size = 0;
+            for (unsigned int i = 0; i < block_size; i++) {
 
-                auto event = event_list[i];
+                auto event = event_block[i];
                 assert(comm_manager_->getNodeID(event->receiverName()) == comm_manager_->getID());
                 unsigned int current_lp_id = local_lp_id_by_name_[event->receiverName()];
                 LogicalProcess* current_lp = lps_by_name_[event->receiverName()];
@@ -212,19 +213,20 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
                     event_set_->releaseInputQueueLock(current_lp_id);
 
                     // Keep record of LPs that need to be scheduled
-                    lp_list.push_back(std::pair<unsigned int, bool> (current_lp_id, false));
+                    lps[i] = std::pair<unsigned int, bool> (current_lp_id, false);
 
                     if (found) tw_stats_->upCount(CANCELLED_EVENTS, thread_id);
                     continue;
                 }
 
                 // Keep record of LPs that need to replenish scheduler
-                lp_list.push_back(std::pair<unsigned int, bool> (current_lp_id, true));
+                lps[i] = std::pair<unsigned int, bool> (current_lp_id, true);
 
                 // Process event and keep record of new events generated
                 auto new_events = current_lp->receiveEvent(*event);
-                new_events_list.push_back(
-                    std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>> (event, new_events));
+                new_events_block[new_events_block_size++] = 
+                    std::pair<std::shared_ptr<Event>, 
+                                std::vector<std::shared_ptr<Event>>> (event, new_events);
 
                 tw_stats_->upCount(EVENTS_PROCESSED, thread_id);
 
@@ -251,7 +253,8 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             }
 
             // Send new events
-            for (auto new_events : new_events_list) {
+            for (unsigned int i = 0; i < new_events_block_size; i++) {
+                auto new_events = new_events_block[i];
                 auto event = std::get<0> (new_events);
                 unsigned int current_lp_id = local_lp_id_by_name_[event->receiverName()];
                 LogicalProcess* current_lp = lps_by_name_[event->receiverName()];
@@ -259,17 +262,17 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             }
 
             // Lock all the input queues in the event block
-            for (auto lp : lp_list) {
-                event_set_->acquireInputQueueLock(std::get<0> (lp));
+            for (unsigned i = 0; i < block_size; i++) {
+                event_set_->acquireInputQueueLock(std::get<0> (lps[i]));
             }
 
             // Move the next event from lp into the schedule queue
             // Also transfer old event to processed queue
-            event_set_->replenishScheduler(lp_list);
+            event_set_->replenishScheduler(lps, block_size);
 
             // Unlock all the input queues in the event block
-            for (auto lp : lp_list) {
-                event_set_->releaseInputQueueLock(std::get<0> (lp));
+            for (unsigned i = 0; i < block_size; i++) {
+                event_set_->releaseInputQueueLock(std::get<0> (lps[i]));
             }
 
         } else {
@@ -283,6 +286,9 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             gvt_manager_->reportThreadMin((unsigned int)-1, thread_id, local_gvt_flag);
         }
     }
+    delete [] event_block;
+    delete [] lps;
+    delete [] new_events_block;
 }
 
 void TimeWarpEventDispatcher::receiveEventMessage(std::unique_ptr<TimeWarpKernelMessage> kmsg) {

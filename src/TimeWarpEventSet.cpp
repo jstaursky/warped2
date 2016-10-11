@@ -116,11 +116,13 @@ void TimeWarpEventSet::insertEvent (unsigned int lp_id, std::shared_ptr<Event> e
 /*
  *  NOTE: caller must always have the input queue lock for the lp with id lp_id
  */
-std::vector<std::shared_ptr<Event>> TimeWarpEventSet::getEvent (
-                                    unsigned int thread_id, unsigned int count) {
+void TimeWarpEventSet::getEvent (   unsigned int thread_id, 
+                                    unsigned int count, 
+                                    std::shared_ptr<Event> *event_block, 
+                                    unsigned int *block_size) {
 
     unsigned int scheduler_id = worker_thread_scheduler_map_[thread_id];
-    std::vector<std::shared_ptr<Event>> event_list;
+    *block_size = 0;
 
     schedule_queue_lock_[scheduler_id].lock();
 
@@ -128,19 +130,16 @@ std::vector<std::shared_ptr<Event>> TimeWarpEventSet::getEvent (
         defined(PARTIALLY_SORTED_LADDER_QUEUE) || defined(SPLAY_TREE)
     auto temp_list = schedule_queue_[scheduler_id]->begin(count);
     for (auto event : temp_list) {
-        if (event == nullptr) break;
-        event_list.push_back(event);
+        event_block[(*block_size)++] = event;
         schedule_queue_[scheduler_id]->erase(event);
     }
 #else
-    for (unsigned int i = 0; i < count; i++) {
-        auto event_iterator = schedule_queue_[scheduler_id]->begin();
-        auto event = (event_iterator != schedule_queue_[scheduler_id]->end()) ?
-                    *event_iterator : nullptr;
-        if (event == nullptr) break;
-        event_list.push_back(event);
-        schedule_queue_[scheduler_id]->erase(event_iterator);
+    auto event_iterator = schedule_queue_[scheduler_id]->begin();
+    while ( count-- && (event_iterator != schedule_queue_[scheduler_id]->end()) ) {
+        event_block[(*block_size)++] = *event_iterator;
+        event_iterator++;
     }
+    schedule_queue_[scheduler_id]->erase(schedule_queue_[scheduler_id]->begin(), event_iterator);
 #endif
 
     // NOTE: scheduled_event_pointer is not changed here so that other threads will 
@@ -152,8 +151,6 @@ std::vector<std::shared_ptr<Event>> TimeWarpEventSet::getEvent (
     // to input queue and they will be cancelled.
 
     schedule_queue_lock_[scheduler_id].unlock();
-
-    return event_list;
 }
 
 #ifdef PARTIALLY_SORTED_LADDER_QUEUE
@@ -264,11 +261,11 @@ void TimeWarpEventSet::startScheduling (unsigned int lp_id) {
  *
  *  NOTE: the scheduled_event_pointer is also protected by input queue lock
  */
-void TimeWarpEventSet::replenishScheduler (std::vector<std::pair<unsigned int,bool>> lp_list) {
+void TimeWarpEventSet::replenishScheduler (
+                std::pair<unsigned int,bool> *lps, unsigned int block_size) {
 
-    if (!lp_list.size()) assert(0);
-    auto lp = *lp_list.begin();
-    unsigned int lp_id = std::get<0> (lp);
+    if (!block_size) assert(0);
+    unsigned int lp_id = std::get<0> (lps[0]);
     unsigned int scheduler_id = input_queue_scheduler_map_[lp_id];
 
     // Map all LPs to the next schedule queue (cyclic order)
@@ -280,8 +277,9 @@ void TimeWarpEventSet::replenishScheduler (std::vector<std::pair<unsigned int,bo
     }
     schedule_queue_lock_[scheduler_id].lock();
 
-    for (auto lp : lp_list) {
+    for (unsigned int i = 0; i < block_size; i++) {
 
+        auto lp = lps[i];
         unsigned int lp_id = std::get<0> (lp);
 
         // Start scheduling or replenish scheduler
