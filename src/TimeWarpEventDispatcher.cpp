@@ -44,7 +44,7 @@ thread_local unsigned int TimeWarpEventDispatcher::thread_id;
 TimeWarpEventDispatcher::TimeWarpEventDispatcher(unsigned int max_sim_time,
     unsigned int num_worker_threads,
     bool is_lp_migration_on,
-    unsigned int chain_size,
+    unsigned int group_size,
     std::shared_ptr<TimeWarpCommunicationManager> comm_manager,
     std::unique_ptr<TimeWarpEventSet> event_set,
     std::unique_ptr<TimeWarpGVTManager> gvt_manager,
@@ -54,7 +54,7 @@ TimeWarpEventDispatcher::TimeWarpEventDispatcher(unsigned int max_sim_time,
     std::unique_ptr<TimeWarpTerminationManager> termination_manager,
     std::unique_ptr<TimeWarpStatistics> tw_stats) :
         EventDispatcher(max_sim_time), num_worker_threads_(num_worker_threads),
-        is_lp_migration_on_(is_lp_migration_on), chain_size_(chain_size),
+        is_lp_migration_on_(is_lp_migration_on), group_size_(group_size),
         comm_manager_(comm_manager), event_set_(std::move(event_set)), 
         gvt_manager_(std::move(gvt_manager)), state_manager_(std::move(state_manager)),
         output_manager_(std::move(output_manager)), twfs_manager_(std::move(twfs_manager)),
@@ -141,18 +141,18 @@ void TimeWarpEventDispatcher::onGVT(unsigned int gvt) {
 void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
     thread_id = id;
-    auto event_block = new std::shared_ptr<Event>[chain_size_];
+    auto event_block = new std::shared_ptr<Event>[group_size_];
     unsigned int block_size = 0;
-    auto lps = new std::pair<unsigned int, bool>[chain_size_];
+    auto lps = new std::pair<unsigned int, bool>[group_size_];
     auto new_events_block = 
-        new std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>[chain_size_];
+        new std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>[group_size_];
 
     while (!termination_manager_->terminationStatus()) {
         // NOTE: local_gvt_flag must be obtained before getting the next event to avoid the
         //  "simultaneous reporting problem"
         unsigned int local_gvt_flag = gvt_manager_->getLocalGVTFlag();
 
-        event_set_->getEvent(thread_id, chain_size_, event_block, &block_size);
+        event_set_->getEvent(thread_id, group_size_, event_block, &block_size);
         if (block_size) {
 
             // If needed, report event for this thread so GVT can be calculated

@@ -41,7 +41,7 @@ public:
         unsigned int max_sim_time,
         unsigned int num_worker_threads,
         bool is_lp_migration_on,
-        unsigned int chain_size,
+        unsigned int group_size,
         std::shared_ptr<TimeWarpCommunicationManager> comm_manager,
         std::unique_ptr<TimeWarpEventSet> event_set,
         std::unique_ptr<TimeWarpGVTManager> gvt_manager,
@@ -86,7 +86,7 @@ private:
     unsigned int num_worker_threads_;
     bool is_lp_migration_on_;
     unsigned int num_local_lps_;
-    unsigned int chain_size_;
+    unsigned int group_size_;
 
     std::unordered_map<std::string, LogicalProcess*> lps_by_name_;
     std::unordered_map<std::string, unsigned int> local_lp_id_by_name_;
