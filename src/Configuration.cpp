@@ -74,8 +74,8 @@ const static std::string DEFAULT_CONFIG = R"x({
     // Number of schedule queues
     "scheduler-count": 1,
 
-    // Chain scheduling size
-    "chain-size": 1,
+    // Group scheduling size
+    "group-size": 1,
 
     // LP Migration valid options are "on" and "off"
     "lp-migration": "off",
@@ -241,10 +241,10 @@ Configuration::makeDispatcher(std::shared_ptr<TimeWarpCommunicationManager> comm
             invalid_string += std::string("\tNumber of schedule queues\n");
         }
 
-        // EVENT CHAIN SIZE
-        int chain_size = (*root_)["time-warp"]["chain-size"].asInt();
-        if (!checkTimeWarpConfigs(chain_size, all_config_ids, comm_manager)) {
-            invalid_string += std::string("\tEvent chain size\n");
+        // EVENT GROUP SIZE
+        int group_size = (*root_)["time-warp"]["group-size"].asInt();
+        if (!checkTimeWarpConfigs(group_size, all_config_ids, comm_manager)) {
+            invalid_string += std::string("\tEvent group size\n");
         }
 
         // LP MIGRATION
@@ -336,7 +336,7 @@ check the following configurations:\n") + invalid_string);
                       << "Number of processes:       " << comm_manager->getNumProcesses() << "\n"
                       << "Number of worker threads:  " << num_worker_threads << "\n"
                       << "Number of Schedule queues: " << num_schedulers << "\n"
-                      << "[Chain scheduling] size:   " << chain_size << "\n";
+                      << "[Chain scheduling] size:   " << group_size << "\n";
 
             std::cout << "Type of Schedule queue:    ";
 #ifdef SORTED_LADDER_QUEUE
@@ -376,7 +376,7 @@ check the following configurations:\n") + invalid_string);
 
         return make_unique<TimeWarpEventDispatcher>(
                     max_sim_time_,num_worker_threads, 
-                    is_lp_migration_on, chain_size, comm_manager,
+                    is_lp_migration_on, group_size, comm_manager,
                     std::move(event_set), std::move(gvt_manager), std::move(state_manager),
                     std::move(output_manager), std::move(twfs_manager),
                     std::move(termination_manager), std::move(tw_stats));

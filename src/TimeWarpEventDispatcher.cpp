@@ -44,7 +44,7 @@ thread_local unsigned int TimeWarpEventDispatcher::thread_id;
 TimeWarpEventDispatcher::TimeWarpEventDispatcher(unsigned int max_sim_time,
     unsigned int num_worker_threads,
     bool is_lp_migration_on,
-    unsigned int chain_size,
+    unsigned int group_size,
     std::shared_ptr<TimeWarpCommunicationManager> comm_manager,
     std::unique_ptr<TimeWarpEventSet> event_set,
     std::unique_ptr<TimeWarpGVTManager> gvt_manager,
@@ -54,7 +54,7 @@ TimeWarpEventDispatcher::TimeWarpEventDispatcher(unsigned int max_sim_time,
     std::unique_ptr<TimeWarpTerminationManager> termination_manager,
     std::unique_ptr<TimeWarpStatistics> tw_stats) :
         EventDispatcher(max_sim_time), num_worker_threads_(num_worker_threads),
-        is_lp_migration_on_(is_lp_migration_on), chain_size_(chain_size),
+        is_lp_migration_on_(is_lp_migration_on), group_size_(group_size),
         comm_manager_(comm_manager), event_set_(std::move(event_set)), 
         gvt_manager_(std::move(gvt_manager)), state_manager_(std::move(state_manager)),
         output_manager_(std::move(output_manager)), twfs_manager_(std::move(twfs_manager)),
@@ -152,7 +152,7 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             unsigned int current_lp_id = local_lp_id_by_name_[event->receiverName()];
             event_set_->acquireInputQueueLock(current_lp_id);
             std::vector<std::shared_ptr<Event>> event_list = 
-                                event_set_->getEventsFromLP(current_lp_id, chain_size_);
+                                event_set_->getEventsFromLP(current_lp_id, group_size_);
             event_set_->releaseInputQueueLock(current_lp_id);
             assert(event_list.size());
 
