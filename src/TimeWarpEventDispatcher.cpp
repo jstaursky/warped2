@@ -174,8 +174,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             assert(comm_manager_->getNodeID(event->receiverName()) == comm_manager_->getID());
             LogicalProcess* current_lp = lps_by_name_[event->receiverName()];
 
-            std::vector<std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>> 
-                                                                                    new_events_list;
             unsigned int relevant_chain_size = event_list.size();
 
             // For each event in the block
@@ -226,8 +224,7 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
                 // Process event and keep record of new events generated
                 auto new_events = current_lp->receiveEvent(*event);
-                new_events_list.push_back(
-                    std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>> (event, new_events));
+                sendEvents(event, new_events, current_lp_id, current_lp);
 
                 tw_stats_->upCount(EVENTS_PROCESSED, thread_id);
 
@@ -251,12 +248,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
                     tw_stats_->upCount(EVENTS_COMMITTED, thread_id, num_committed);
                 }
-            }
-
-            // Send new events
-            for (auto new_events : new_events_list) {
-                sendEvents(std::get<0> (new_events), std::get<1> (new_events), 
-                                                        current_lp_id, current_lp);
             }
 
             // Move the next event from lp into the schedule queue
