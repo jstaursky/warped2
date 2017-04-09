@@ -144,8 +144,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
     auto event_block = new std::shared_ptr<Event>[group_size_];
     unsigned int block_size = 0;
     auto lps = new std::pair<unsigned int, bool>[group_size_];
-    auto new_events_block = 
-        new std::pair<std::shared_ptr<Event>, std::vector<std::shared_ptr<Event>>>[group_size_];
 
     while (!termination_manager_->terminationStatus()) {
         // NOTE: local_gvt_flag must be obtained before getting the next event to avoid the
@@ -171,7 +169,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
             }
 
             // For each event in the block
-            unsigned int new_events_block_size = 0;
             for (unsigned int i = 0; i < block_size; i++) {
 
                 auto event = event_block[i];
@@ -224,9 +221,7 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
                 // Process event and keep record of new events generated
                 auto new_events = current_lp->receiveEvent(*event);
-                new_events_block[new_events_block_size++] = 
-                    std::pair<std::shared_ptr<Event>, 
-                                std::vector<std::shared_ptr<Event>>> (event, new_events);
+                sendEvents(event, new_events, current_lp_id, current_lp);
 
                 tw_stats_->upCount(EVENTS_PROCESSED, thread_id);
 
@@ -250,15 +245,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
 
                     tw_stats_->upCount(EVENTS_COMMITTED, thread_id, num_committed);
                 }
-            }
-
-            // Send new events
-            for (unsigned int i = 0; i < new_events_block_size; i++) {
-                auto new_events = new_events_block[i];
-                auto event = std::get<0> (new_events);
-                unsigned int current_lp_id = local_lp_id_by_name_[event->receiverName()];
-                LogicalProcess* current_lp = lps_by_name_[event->receiverName()];
-                sendEvents(event, std::get<1> (new_events), current_lp_id, current_lp);
             }
 
             // Lock all the input queues in the event block
@@ -288,7 +274,6 @@ void TimeWarpEventDispatcher::processEvents(unsigned int id) {
     }
     delete [] event_block;
     delete [] lps;
-    delete [] new_events_block;
 }
 
 void TimeWarpEventDispatcher::receiveEventMessage(std::unique_ptr<TimeWarpKernelMessage> kmsg) {
