@@ -126,13 +126,21 @@ void TimeWarpEventSet::getEvent (   unsigned int thread_id,
 
     schedule_queue_lock_[scheduler_id].lock();
 
-#if defined(SORTED_LADDER_QUEUE) || \
-        defined(PARTIALLY_SORTED_LADDER_QUEUE) || defined(SPLAY_TREE)
+#if defined(SORTED_LADDER_QUEUE) || defined(PARTIALLY_SORTED_LADDER_QUEUE)
     auto temp_list = schedule_queue_[scheduler_id]->begin(count);
     for (auto event : temp_list) {
         event_block[(*block_size)++] = event;
         schedule_queue_[scheduler_id]->erase(event);
     }
+
+#elif defined(SPLAY_TREE)
+    for (unsigned int i = 0; i < count; i++) {
+        auto event = schedule_queue_[scheduler_id]->begin();
+        if (!event) break;
+        event_block[(*block_size)++] = event;
+        schedule_queue_[scheduler_id]->erase(event);
+    }
+
 #else
     auto event_iterator = schedule_queue_[scheduler_id]->begin();
     while ( count-- && (event_iterator != schedule_queue_[scheduler_id]->end()) ) {
